@@ -103,3 +103,4 @@ The three overlap on the "propose-data-quality-rules" surface; here we scope QA 
 - Extract the L'Oréal PO Data job description and map each responsibility to a specific tool or skill above.
 - Decide whether to add write-heavy workflows (e.g. batch certification) or keep the assistant advisory-only in V1.
 # data_stewart_agent
+# data_stewart_agent
