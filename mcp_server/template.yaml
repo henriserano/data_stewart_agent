@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Data Steward MCP server on AWS Lambda (ARM64) with Function URL — cost-optimized for POC.
+
+Parameters:
+  OpenMetadataHost:
+    Type: String
+    Description: e.g. https://openmetadata.example.com
+  BearerTokenParamName:
+    Type: String
+    Description: SSM Parameter Store name holding the MCP bearer token (SecureString)
+    Default: /data-steward/mcp-bearer-token
+  OpenMetadataJwtParamName:
+    Type: String
+    Description: SSM Parameter Store name holding the OpenMetadata JWT (SecureString)
+    Default: /data-steward/openmetadata-jwt
+  LogRetentionDays:
+    Type: Number
+    Default: 3
+    Description: Keep logs short to minimize CloudWatch cost.
+
+Globals:
+  Function:
+    Timeout: 29
+    MemorySize: 512
+    Architectures: [arm64]
+    Runtime: python3.12
+
+Resources:
+  DataStewardMcpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: data-steward-mcp
+      CodeUri: src/
+      Handler: app.handler
+      Environment:
+        Variables:
+          OPENMETADATA_HOST: !Ref OpenMetadataHost
+          MCP_BEARER_TOKEN_PARAM: !Ref BearerTokenParamName
+          OPENMETADATA_JWT_PARAM: !Ref OpenMetadataJwtParamName
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: RESPONSE_STREAM
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [ssm:GetParameter]
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${BearerTokenParamName}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenMetadataJwtParamName}
+            - Effect: Allow
+              Action: [kms:Decrypt]
+              Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/aws/ssm
+
+  DataStewardMcpLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${DataStewardMcpFunction}
+      RetentionInDays: !Ref LogRetentionDays
+
+Outputs:
+  FunctionUrl:
+    Description: Public URL of the MCP server. Wire this into Claude Desktop / Claude for Work.
+    Value: !GetAtt DataStewardMcpFunctionUrl.FunctionUrl
+  FunctionArn:
+    Value: !GetAtt DataStewardMcpFunction.Arn

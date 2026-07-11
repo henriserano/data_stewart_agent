@@ -1,0 +1,9 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "data-steward-mcp"
+region = "eu-west-3"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+confirm_changeset = false
+parameter_overrides = "OpenMetadataHost=https://openmetadata.your-domain.com"
