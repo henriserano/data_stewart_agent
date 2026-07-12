@@ -81,7 +81,7 @@ Remplacez tout le contenu du fichier par ceci :
 {
   "mcpServers": {
     "data-steward": {
-      "url": "https://nnkpfzmbbmzezoch5qg7mohlqe0haohf.lambda-url.eu-west-3.on.aws/mcp",
+      "url": "https://rtg5ndsskm.eu-west-1.awsapprunner.com/mcp",
       "headers": {
         "Authorization": "Bearer aa6ac21d3e5524991959d424e4771c9de2a3b90a3d3c5b9c15364affec047dc5" 
       }
@@ -93,7 +93,7 @@ Remplacez tout le contenu du fichier par ceci :
 
 **Deux choses à modifier** :
 
-1. Remplacez `https://nnkpfzmbbmzezoch5qg7mohlqe0haohf.lambda-url.eu-west-3.on.aws/mc` par l'URL que vous a donnée l'admin (attention à bien laisser le `/mcp` à la fin)
+1. Remplacez `https://rtg5ndsskm.eu-west-1.awsapprunner.com/mcp` par l'URL que vous a donnée l'admin (attention à bien laisser le `/mcp` à la fin)
 2. Remplacez `VOTRE-JETON-ICI` par votre jeton (gardez le mot `Bearer` et l'espace avant)
 
 **Sauvegardez** le fichier (Cmd + S sur Mac, Ctrl + S sur Windows).
