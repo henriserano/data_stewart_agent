@@ -1,23 +1,22 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Data Steward MCP server on AWS Lambda (ARM64) with Function URL — cost-optimized for POC.
+Description: Data Steward MCP — Lambda-native (no LWA, no ASGI framework, no runtime SSM).
 
 Parameters:
   OpenMetadataHost:
     Type: String
-    Description: e.g. https://openmetadata.example.com
+    Description: e.g. https://sandbox.open-metadata.org
   BearerTokenParamName:
     Type: String
-    Description: SSM Parameter Store name holding the MCP bearer token (SecureString)
+    Description: SSM Parameter (SecureString) name for the MCP bearer token
     Default: /data-steward/mcp-bearer-token
   OpenMetadataJwtParamName:
     Type: String
-    Description: SSM Parameter Store name holding the OpenMetadata JWT (SecureString)
+    Description: SSM Parameter (SecureString) name for the OpenMetadata JWT
     Default: /data-steward/openmetadata-jwt
   LogRetentionDays:
     Type: Number
     Default: 3
-    Description: Keep logs short to minimize CloudWatch cost.
 
 Globals:
   Function:
@@ -32,26 +31,19 @@ Resources:
     Properties:
       FunctionName: data-steward-mcp
       CodeUri: src/
-      Handler: run.sh
-      Layers:
-        # AWS Lambda Web Adapter (arm64) — proxies HTTP requests to uvicorn on $PORT.
-        # Public layer maintained by AWS at account 753240598075.
-        - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerArm64:25
+      Handler: app.handler
       Environment:
         Variables:
-          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
-          PORT: "8080"
-          READINESS_CHECK_PATH: /health
           OPENMETADATA_HOST: !Ref OpenMetadataHost
-          MCP_BEARER_TOKEN_PARAM: !Ref BearerTokenParamName
           OPENMETADATA_JWT_PARAM: !Ref OpenMetadataJwtParamName
+          MCP_BEARER_TOKEN_PARAM: !Ref BearerTokenParamName
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED
       Policies:
         - Statement:
             - Effect: Allow
-              Action: [ssm:GetParameter]
+              Action: [ssm:GetParameters]
               Resource:
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${BearerTokenParamName}
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenMetadataJwtParamName}
@@ -67,7 +59,7 @@ Resources:
 
 Outputs:
   FunctionUrl:
-    Description: Public URL of the MCP server. Wire this into Claude Desktop / Claude for Work.
+    Description: Public URL. Wire into Claude Desktop / ChatGPT MCP.
     Value: !GetAtt DataStewardMcpFunctionUrl.FunctionUrl
   FunctionArn:
     Value: !GetAtt DataStewardMcpFunction.Arn

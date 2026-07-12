@@ -53,7 +53,7 @@ def test_lineage_query_params(mock_om: respx.Router) -> None:
     route = mock_om.get("/lineage/table/table-uuid-1").mock(
         return_value=Response(200, json={"nodes": [], "upstreamEdges": [], "downstreamEdges": []})
     )
-    get_client().get_lineage("table", "table-uuid-1", upstream_depth=2, downstream_depth=1)
+    get_client().get_lineage("table", "table-uuid-1", upstream=2, downstream=1)
     assert route.called
     url = str(route.calls.last.request.url)
     assert "upstreamDepth=2" in url

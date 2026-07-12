@@ -1,8 +1,8 @@
 # Data Steward Agent — Sia
 
-Operational assistant for a Data Owner. Ships as **MCP server on AWS Lambda** + **11 Claude Skills**. Metadata only, never touches business data.
+Operational assistant for a Data Owner. Ships as a **Lambda-native MCP server** (42 tools on top of OpenMetadata) + **11 Claude Skills** that package the operational workflows. Metadata only, never touches business data.
 
-Scope of the assistant (aligned with the L'Oréal PO Data role reference):
+Scope of the assistant, aligned with the L'Oréal PO Data role reference:
 - **Describe data** — asset and column-level documentation
 - **A-priori controls** — define data-quality rules grounded in the schema
 - **A-posteriori observations** — surface test results and health signals
@@ -15,15 +15,17 @@ Scope of the assistant (aligned with the L'Oréal PO Data role reference):
 ```
 Data stewart Agent/
 ├── README.md                    # this file
-├── mcp_server/                  # MCP server (Python, FastMCP, AWS SAM)
-│   ├── README.md                # deployment guide
-│   ├── template.yaml            # AWS SAM template
+├── mcp_server/                  # MCP server (Python 3.12, AWS SAM)
+│   ├── README.md                # deployment + verification guide
+│   ├── template.yaml            # AWS SAM template (Lambda ARM64 + Function URL)
+│   ├── samconfig.toml.example
+│   ├── pyproject.toml, requirements.txt, requirements-dev.txt
 │   ├── src/
-│   │   ├── app.py               # Lambda handler + FastMCP init
-│   │   ├── config.py, auth.py, openmetadata_client.py
-│   │   └── tools/               # 7 modules, ~35 tools
-│   ├── pyproject.toml, requirements.txt
-│   └── .env.example, samconfig.toml.example
+│   │   ├── app.py               # Lambda handler + JSON-RPC dispatcher
+│   │   ├── config.py            # env vars + SSM batch fetch
+│   │   ├── openmetadata_client.py
+│   │   └── tools/               # 7 modules registering 42 @tool functions
+│   └── tests/                   # pytest suite (respx mocks)
 └── skills/                      # 11 SKILL.md workflow definitions
     ├── README.md
     ├── document-asset/
@@ -42,65 +44,73 @@ Data stewart Agent/
 ## How the pieces fit
 
 ```
-┌─────────────────────────────────────┐
-│ Data Owner in Claude Desktop /      │
-│ Claude for Work                     │
-└──────────────┬──────────────────────┘
-               │
-               │  (1) selects a Skill (e.g. "document this table")
-               │  (2) chats naturally
-               │
+┌───────────────────────────────────────┐
+│ Data Owner in Claude Desktop /        │
+│ Claude for Work / ChatGPT             │
+└──────────────┬────────────────────────┘
+               │  (1) picks a Skill  (2) chats
                ▼
-┌─────────────────────────────────────┐
-│ Skill (SKILL.md)                    │
-│ - procedure                         │
-│ - anti-patterns                     │
-│ - which MCP tools to call and when  │
-└──────────────┬──────────────────────┘
-               │  (3) Claude calls MCP tools
+┌───────────────────────────────────────┐
+│ Skill (SKILL.md)                      │
+│  procedure + anti-patterns +          │
+│  which MCP tools to call, in order    │
+└──────────────┬────────────────────────┘
+               │  (3) MCP JSON-RPC over HTTPS + Bearer
                ▼
-┌─────────────────────────────────────┐
-│ MCP server (AWS Lambda, ARM64)      │
-│ - 35 tools: search, describe,       │
-│   lineage, quality, glossary, ...   │
-└──────────────┬──────────────────────┘
-               │  (4) REST calls
+┌───────────────────────────────────────┐
+│ AWS Lambda (ARM64, 512 MB)            │
+│ 42 tools across 7 modules             │
+└──────────────┬────────────────────────┘
+               │  (4) REST + JSON Patch
                ▼
-┌─────────────────────────────────────┐
-│ OpenMetadata (or DataHub)           │
-│ - metadata only, no business rows   │
-└─────────────────────────────────────┘
+┌───────────────────────────────────────┐
+│ OpenMetadata                          │
+│   POC : sandbox.open-metadata.org     │
+│   Prod: self-hosted on EC2            │
+└───────────────────────────────────────┘
 ```
+
+## Deployment targets
+
+| Target | OpenMetadata backend | Setup time | Monthly cost |
+| --- | --- | --- | --- |
+| POC / demo | Public OM sandbox (`sandbox.open-metadata.org`) | 10 min | **$0** |
+| Prod | Self-hosted OM on an EC2 `t4g.medium` in eu-west-3 | ~1h first time | ~$25 |
+
+The Lambda + skills package is identical between both. Only the `OpenMetadataHost` parameter changes on deploy.
 
 ## Getting started
 
-1. **Deploy the MCP server.** Follow `mcp_server/README.md`. One `sam deploy` gets you a Function URL.
-2. **Wire Claude Desktop** to that URL with a bearer token (config example in the same README).
-3. **Load the skills.** Two options:
-   - Local Claude Code: drop `skills/` into your project so Claude auto-discovers them.
-   - Claude for Work: publish the skills you want via the admin console. Each skill folder is a self-contained artifact.
+1. **Deploy the MCP server on AWS.** Follow `mcp_server/README.md`. One `sam deploy` yields a Function URL.
+2. **Wire your MCP client.**
+   - Claude Desktop: paste Function URL + bearer into `claude_desktop_config.json` and fully quit + relaunch.
+   - Claude for Work: publish org-wide via the admin console.
+   - ChatGPT: add as a custom MCP server in settings.
+3. **Load the skills.**
+   - Local Claude Code: drop `skills/` into your project — auto-discovered.
+   - Claude for Work: publish each SKILL.md via the admin console.
 
-## Cost profile
+## Performance (measured against OpenMetadata sandbox)
 
-- Lambda ARM64 + Function URL: covered by AWS free tier for POC volumes.
-- CloudWatch Logs with 3-day retention: pennies.
-- SSM Parameter Store Standard tier: free.
-- No API Gateway, no NAT Gateway (unless your OpenMetadata is in a VPC — then reuse existing NAT).
-- **Estimated monthly cost for POC usage: ~$0.**
+| Path | Latency |
+| --- | --- |
+| Lambda cold start (`/health`) | ~600 ms |
+| Lambda warm (`/health`) | ~60 ms |
+| MCP `tools/list` warm | ~60 ms |
+| MCP `tools/call` warm | ~170–210 ms (network to sandbox is the floor) |
+
+Package size: **2.3 MB** deployed. Runtime: Python 3.12 ARM64. No LWA layer, no uvicorn, no ASGI framework — just a plain Lambda handler over the Function URL protocol.
 
 ## Positioning vs the two sister agents
 
 This repo is the **Data Steward Agent**. Related work in the same parent folder:
+- **Data Quality Agent** (`../Data Quality agent/`) — grounded QA-rule generation from data profiling.
+- **Audit Agent** (referenced in `../Agent_idea.md`) — catalog snapshot + slide deliverable for a Sia audit.
 
-- **Data Quality agent** (`../Data Quality agent/`) — grounded QA-rule generation, deeper focus on rule definition from data.
-- **Audit agent** (referenced in `../Agent_idea.md`) — catalog snapshot + slides for a Sia audit deliverable.
-
-The three overlap on the "propose-data-quality-rules" surface; here we scope QA to a-priori + a-posteriori signals only, and defer heavier profiling to the Data Quality agent.
+The three overlap on the "propose-data-quality-rules" surface; here we scope QA to a-priori + a-posteriori signals only, and defer deeper profiling to the Data Quality Agent.
 
 ## Next steps
 
-- Interview PO Data at L'Oréal to validate scope, confirm platform (OpenMetadata assumed here), identify the top 3 workflows to demo.
+- Interview PO Data at L'Oréal to validate scope and confirm their platform.
 - Extract the L'Oréal PO Data job description and map each responsibility to a specific tool or skill above.
-- Decide whether to add write-heavy workflows (e.g. batch certification) or keep the assistant advisory-only in V1.
-# data_stewart_agent
-# data_stewart_agent
+- For prod demo: provision the EC2 running OpenMetadata in eu-west-3 and switch `OpenMetadataHost` at redeploy.

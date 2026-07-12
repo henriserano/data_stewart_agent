@@ -1,9 +1,10 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "data-steward-mcp"
+stack_name = "data-steward-mcp-poc"
 region = "eu-west-3"
 capabilities = "CAPABILITY_IAM"
 resolve_s3 = true
 confirm_changeset = false
-parameter_overrides = "OpenMetadataHost=https://openmetadata.your-domain.com"
+# POC default targets the free OpenMetadata sandbox. Swap for your EC2/on-prem URL for prod.
+parameter_overrides = "OpenMetadataHost=https://sandbox.open-metadata.org BearerTokenParamName=/data-steward/mcp-bearer-token OpenMetadataJwtParamName=/data-steward/openmetadata-jwt LogRetentionDays=3"

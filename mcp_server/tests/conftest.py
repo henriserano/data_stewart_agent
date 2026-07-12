@@ -1,85 +1,45 @@
-"""Shared test fixtures.
-
-The MCP server tools are registered as closures inside module-level ``register(mcp)``
-functions. To exercise them from tests without spinning up an MCP transport, we
-register them onto a real ``FastMCP`` instance and pull each tool's underlying
-callable back out of the registry.
-"""
 from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 import respx
-from mcp.server.fastmcp import FastMCP
 
-# Match Lambda's flat layout: put src/ on the path and import modules directly.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-# Env vars must be set before importing anything that reads config.
-os.environ.setdefault("OPENMETADATA_HOST", "https://openmetadata.test")
-os.environ.setdefault("OPENMETADATA_JWT", "test-jwt-token")
-os.environ.setdefault("MCP_BEARER_TOKEN", "test-bearer")
+# Force test env — overrides anything the shell may have exported via `source .env`.
+os.environ["OPENMETADATA_HOST"] = "https://openmetadata.test"
+os.environ["OPENMETADATA_JWT"] = "test-jwt-token"
+os.environ["MCP_BEARER_TOKEN"] = "test-bearer"
 
+import config  # noqa: E402
 import openmetadata_client  # noqa: E402
-from tools import (  # noqa: E402
-    discovery,
-    documentation,
-    glossary,
-    golden_source,
-    governance,
-    lineage,
-    quality,
-)
-
-TOOL_MODULES = {
-    "discovery": discovery,
-    "documentation": documentation,
-    "glossary": glossary,
-    "golden_source": golden_source,
-    "governance": governance,
-    "lineage": lineage,
-    "quality": quality,
-}
+from tools import TOOLS  # noqa: E402 — importing registers all tools
 
 
 @pytest.fixture(autouse=True)
-def _reset_client_cache() -> None:
-    """Force a fresh OpenMetadataClient per test so respx routing is deterministic."""
-    openmetadata_client.get_client.cache_clear()
+def _reset_singletons() -> None:
+    config._CONFIG = None
+    openmetadata_client._CLIENT = None
     yield
-    openmetadata_client.get_client.cache_clear()
+    config._CONFIG = None
+    openmetadata_client._CLIENT = None
 
 
 @pytest.fixture
 def mock_om() -> respx.Router:
-    """Give tests a respx router mounted on the test OpenMetadata host."""
     with respx.mock(base_url="https://openmetadata.test/api/v1", assert_all_called=False) as router:
         yield router
 
 
 @pytest.fixture
-def tools() -> dict[str, Callable[..., Any]]:
-    """Return a flat dict {tool_name: callable} across all modules.
+def tools() -> dict[str, Any]:
+    """Flat dict {tool_name: callable}."""
+    return {name: spec["fn"] for name, spec in TOOLS.items()}
 
-    FastMCP stores registered tools on ``mcp._tool_manager._tools``; we introspect
-    that structure to hand back the wrapped functions for direct invocation.
-    """
-    mcp = FastMCP("test-data-steward")
-    for module in TOOL_MODULES.values():
-        module.register(mcp)
-    # FastMCP internal API: _tool_manager.list_tools() returns Tool objects
-    # each of which has a .fn attribute pointing at the underlying callable.
-    registry: dict[str, Callable[..., Any]] = {}
-    for tool in mcp._tool_manager.list_tools():
-        registry[tool.name] = tool.fn
-    return registry
-
-
-# -------------------------------------------------------- sample OpenMetadata payloads
 
 @pytest.fixture
 def sample_table() -> dict[str, Any]:
@@ -102,12 +62,7 @@ def sample_table() -> dict[str, Any]:
 
 @pytest.fixture
 def sample_search_response(sample_table: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "hits": {
-            "total": {"value": 1},
-            "hits": [{"_source": sample_table}],
-        }
-    }
+    return {"hits": {"total": {"value": 1}, "hits": [{"_source": sample_table}]}}
 
 
 @pytest.fixture
@@ -117,8 +72,6 @@ def sample_lineage() -> dict[str, Any]:
             {"id": "raw-1", "name": "raw_customer", "fullyQualifiedName": "raw_snowflake.stg.raw_customer", "type": "table"},
             {"id": "table-uuid-1", "name": "dim_customer", "fullyQualifiedName": "prod_snowflake.analytics.dim_customer", "type": "table"},
         ],
-        "upstreamEdges": [
-            {"fromEntity": "raw-1", "toEntity": "table-uuid-1"},
-        ],
+        "upstreamEdges": [{"fromEntity": "raw-1", "toEntity": "table-uuid-1"}],
         "downstreamEdges": [],
     }

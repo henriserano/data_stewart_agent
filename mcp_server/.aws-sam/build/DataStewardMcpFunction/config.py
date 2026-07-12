@@ -1,37 +1,43 @@
-import os
-from functools import lru_cache
+"""Config: env vars for parameter names, SSM SecureString for the secrets themselves.
 
-import boto3
+Fetching both secrets is done in a single ``GetParameters`` batch call on first access,
+then cached for the life of the Lambda container. boto3 is bundled in the Lambda Python
+runtime — not in requirements.txt.
+"""
+import os
 
 
 class Config:
+    __slots__ = ("openmetadata_host", "openmetadata_jwt", "bearer_token", "request_timeout")
+
     def __init__(self) -> None:
         self.openmetadata_host: str = os.environ["OPENMETADATA_HOST"].rstrip("/")
-        self.bearer_token: str = _resolve_secret("MCP_BEARER_TOKEN_PARAM", "MCP_BEARER_TOKEN")
-        self.openmetadata_jwt: str = _resolve_secret("OPENMETADATA_JWT_PARAM", "OPENMETADATA_JWT")
-        self.request_timeout: float = float(os.environ.get("REQUEST_TIMEOUT", "20"))
-        self.default_page_size: int = int(os.environ.get("DEFAULT_PAGE_SIZE", "20"))
+        self.request_timeout: float = float(os.environ.get("REQUEST_TIMEOUT", "15"))
+
+        jwt_env = os.environ.get("OPENMETADATA_JWT")
+        bearer_env = os.environ.get("MCP_BEARER_TOKEN")
+        if jwt_env and bearer_env:
+            self.openmetadata_jwt = jwt_env
+            self.bearer_token = bearer_env
+        else:
+            self.openmetadata_jwt, self.bearer_token = _fetch_secrets()
 
 
-def _resolve_secret(param_env: str, inline_env: str) -> str:
-    param_name = os.environ.get(param_env)
-    if param_name:
-        return _fetch_ssm_parameter(param_name)
-    inline = os.environ.get(inline_env)
-    if inline:
-        return inline
-    raise RuntimeError(
-        f"Missing secret: set either {param_env} (SSM parameter name) or {inline_env} (raw value)."
-    )
-
-
-@lru_cache(maxsize=32)
-def _fetch_ssm_parameter(name: str) -> str:
+def _fetch_secrets() -> tuple[str, str]:
+    import boto3
+    jwt_param = os.environ["OPENMETADATA_JWT_PARAM"]
+    bearer_param = os.environ["MCP_BEARER_TOKEN_PARAM"]
     ssm = boto3.client("ssm")
-    resp = ssm.get_parameter(Name=name, WithDecryption=True)
-    return resp["Parameter"]["Value"]
+    resp = ssm.get_parameters(Names=[jwt_param, bearer_param], WithDecryption=True)
+    values = {p["Name"]: p["Value"] for p in resp["Parameters"]}
+    return values[jwt_param], values[bearer_param]
 
 
-@lru_cache(maxsize=1)
+_CONFIG: Config | None = None
+
+
 def get_config() -> Config:
-    return Config()
+    global _CONFIG
+    if _CONFIG is None:
+        _CONFIG = Config()
+    return _CONFIG

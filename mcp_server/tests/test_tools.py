@@ -140,8 +140,6 @@ def test_find_impact_scope_returns_count(
     mock_om.get(f"/lineage/table/{sample_table['id']}").mock(
         return_value=Response(200, json={"nodes": sample_lineage["nodes"], "downstreamEdges": [], "upstreamEdges": []})
     )
-    # For the enrichment loop we return a minimal entity per node.
-    mock_om.get(url__regex=r".*/tables/.*").mock(return_value=Response(200, json={"owners": []}))
     result = tools["find_impact_scope"](fqn=fqn, depth=3)
     assert result["impactedCount"] == 2
 

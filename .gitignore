@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# SAM / Lambda build artifacts
+.aws-sam/
+samconfig.toml
+
+# Secrets & local config
+.env
+.env.local
+*.pem
+*.key
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Legacy — no longer used, but block if regenerated locally
+openmetadata/
+docker-volume/
+ngrok.log
