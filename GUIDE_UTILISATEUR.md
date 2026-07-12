@@ -17,6 +17,7 @@ C'est un assistant qui vous aide à travailler avec le catalogue de données de 
 - Comparer plusieurs sources et proposer laquelle prendre comme "source de vérité"
 
 Techniquement, il utilise deux briques :
+
 - Un **MCP** (Model Context Protocol) — un connecteur qui donne à Claude/ChatGPT l'accès aux 42 outils qui interrogent le catalogue.
 - Des **Skills** — des procédures écrites qui guident l'agent sur "quel outil utiliser quand".
 
@@ -28,11 +29,11 @@ Vous ne verrez jamais ces briques : elles fonctionnent en arrière-plan une fois
 
 Récupérez ces trois éléments auprès de la personne qui a installé le serveur (probablement Henri chez Sia). Sans eux, l'agent ne peut pas se connecter.
 
-| Élément | À quoi ça ressemble | Où le trouver |
-|---|---|---|
-| **URL du serveur** | `https://xxx.lambda-url.eu-west-3.on.aws/mcp` | Fournie par l'admin |
-| **Jeton d'accès (bearer)** | Une longue chaîne de caractères aléatoires | Fournie par l'admin (à conserver en sécurité, comme un mot de passe) |
-| **Dossier `skills/`** | Un dossier contenant 11 fichiers `SKILL.md` | Dans ce repo Git, dossier `skills/` |
+| Élément                         | À quoi ça ressemble                                                        | Où le trouver                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **URL du serveur**          |  `https://nnkpfzmbbmzezoch5qg7mohlqe0haohf.lambda-url.eu-west-3.on.aws/mc` | Fournie par l'admin                                                     |
+| **Jeton d'accès (bearer)** | Une longue chaîne de caractères aléatoires                                | Fournie par l'admin (à conserver en sécurité, comme un mot de passe) |
+| **Dossier `skills/`**     | Un dossier contenant 11 fichiers`SKILL.md`                                 | Dans ce repo Git, dossier`skills/`                                    |
 
 > **Sécurité** — Ne partagez jamais votre jeton par mail non chiffré ou sur des messageries publiques. Traitez-le comme un mot de passe.
 
@@ -53,6 +54,7 @@ Si pas installé, téléchargez-le sur https://claude.ai/download.
 Le fichier de config s'appelle `claude_desktop_config.json`. Il se trouve à un endroit précis selon votre système.
 
 **Sur Mac :**
+
 1. Ouvrez le Finder
 2. Menu **Aller → Aller au dossier…** (raccourci Cmd + Maj + G)
 3. Collez ce chemin et appuyez sur Entrée :
@@ -63,6 +65,7 @@ Le fichier de config s'appelle `claude_desktop_config.json`. Il se trouve à un 
 5. Si le fichier n'existe pas, créez-le : clic droit dans le dossier → **Nouveau document**, nommez-le exactement `claude_desktop_config.json`.
 
 **Sur Windows :**
+
 1. Ouvrez l'explorateur de fichiers
 2. Dans la barre d'adresse, tapez :
    ```
@@ -78,17 +81,19 @@ Remplacez tout le contenu du fichier par ceci :
 {
   "mcpServers": {
     "data-steward": {
-      "url": "https://xxx.lambda-url.eu-west-3.on.aws/mcp",
+      "url": "https://nnkpfzmbbmzezoch5qg7mohlqe0haohf.lambda-url.eu-west-3.on.aws/mcp",
       "headers": {
-        "Authorization": "Bearer VOTRE-JETON-ICI"
+        "Authorization": "Bearer aa6ac21d3e5524991959d424e4771c9de2a3b90a3d3c5b9c15364affec047dc5" 
       }
     }
   }
 }
+(mettre 4 à la place de 5 à la fin )
 ```
 
 **Deux choses à modifier** :
-1. Remplacez `https://xxx.lambda-url.eu-west-3.on.aws/mcp` par l'URL que vous a donnée l'admin (attention à bien laisser le `/mcp` à la fin)
+
+1. Remplacez `https://nnkpfzmbbmzezoch5qg7mohlqe0haohf.lambda-url.eu-west-3.on.aws/mc` par l'URL que vous a donnée l'admin (attention à bien laisser le `/mcp` à la fin)
 2. Remplacez `VOTRE-JETON-ICI` par votre jeton (gardez le mot `Bearer` et l'espace avant)
 
 **Sauvegardez** le fichier (Cmd + S sur Mac, Ctrl + S sur Windows).
@@ -127,6 +132,7 @@ Dans votre projet, tapez ceci :
 > "Utilise la skill `review-undocumented-backlog` pour me montrer les tables sans description dans le catalogue, limite à 10 résultats."
 
 Claude va :
+
 1. Appliquer la procédure de la skill (repérer les tables non documentées, les prioriser)
 2. Appeler l'outil `list_undocumented_assets` en coulisse
 3. Vous présenter le résultat en langage naturel
@@ -170,12 +176,12 @@ Cliquez sur votre avatar en haut à droite → **Manage subscription**. Vous dev
 3. Cliquez sur **Add MCP Server** (ou **+ Connect a service**)
 4. Renseignez les champs :
 
-| Champ | Valeur |
-|---|---|
-| **Name** | `Data Steward` |
-| **Description** | `Assistant OpenMetadata — 42 outils pour Data Owners` |
-| **URL** | l'URL fournie par l'admin (finit par `/mcp`) |
-| **Authorization** | `Bearer VOTRE-JETON` |
+| Champ                   | Valeur                                                   |
+| ----------------------- | -------------------------------------------------------- |
+| **Name**          | `Data Steward`                                         |
+| **Description**   | `Assistant OpenMetadata — 42 outils pour Data Owners` |
+| **URL**           | l'URL fournie par l'admin (finit par`/mcp`)            |
+| **Authorization** | `Bearer VOTRE-JETON`                                   |
 
 5. Cliquez **Save** ou **Connect**.
 
@@ -216,6 +222,7 @@ C'est normal si vous n'avez jamais configuré de MCP avant. Créez-le à la main
 ### "Claude / ChatGPT dit qu'il ne trouve aucun asset"
 
 Le catalogue OpenMetadata connecté est peut-être vide ou pointe vers un environnement de test sans données. Demandez à l'admin de vérifier :
+
 - Sur quel OpenMetadata l'agent est branché (sandbox public, EC2 prod, autre ?)
 - Si le catalogue contient bien des tables/dashboards indexés
 
