@@ -8,20 +8,24 @@ callable back out of the registry.
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 from typing import Any, Callable
 
 import pytest
 import respx
-from httpx import Response
 from mcp.server.fastmcp import FastMCP
+
+# Match Lambda's flat layout: put src/ on the path and import modules directly.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 # Env vars must be set before importing anything that reads config.
 os.environ.setdefault("OPENMETADATA_HOST", "https://openmetadata.test")
 os.environ.setdefault("OPENMETADATA_JWT", "test-jwt-token")
 os.environ.setdefault("MCP_BEARER_TOKEN", "test-bearer")
 
-from src import openmetadata_client  # noqa: E402
-from src.tools import (  # noqa: E402
+import openmetadata_client  # noqa: E402
+from tools import (  # noqa: E402
     discovery,
     documentation,
     glossary,

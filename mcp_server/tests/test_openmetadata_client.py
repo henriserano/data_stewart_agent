@@ -1,13 +1,11 @@
 """Tests for the OpenMetadata REST client wrapper."""
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 import respx
 from httpx import Response
 
-from src.openmetadata_client import OpenMetadataClient, OpenMetadataError, get_client
+from openmetadata_client import OpenMetadataError, get_client
 
 
 def test_get_entity_by_fqn_url_escaping(mock_om: respx.Router) -> None:

@@ -6,6 +6,7 @@ asserts the shape/semantics of the output.
 from __future__ import annotations
 
 from typing import Any, Callable
+from urllib.parse import parse_qs, urlparse
 
 import respx
 from httpx import Response
@@ -50,7 +51,8 @@ def test_list_undocumented_assets_uses_missing_desc_filter(
     route = mock_om.get("/search/query").mock(return_value=Response(200, json=_search_response([undocumented])))
     result = tools["list_undocumented_assets"](entity_type="table", limit=10)
     assert result["count"] == 1
-    assert "NOT description:*" in str(route.calls.last.request.url)
+    query = parse_qs(urlparse(str(route.calls.last.request.url)).query)
+    assert query["q"] == ["NOT description:*"]
 
 
 # ------------------------------------------------------------------ documentation
@@ -70,12 +72,10 @@ def test_propose_asset_description_is_dry_run(
 
 def test_apply_asset_description_requires_confirm(
     tools: dict[str, Callable[..., Any]],
-    mock_om: respx.Router,
     sample_table: dict[str, Any],
 ) -> None:
-    fqn = sample_table["fullyQualifiedName"]
-    # No respx route needed for confirm=False path; it should short-circuit.
-    result = tools["apply_asset_description"](fqn=fqn, description="X", confirm=False)
+    # confirm=False must short-circuit before any HTTP call.
+    result = tools["apply_asset_description"](fqn=sample_table["fullyQualifiedName"], description="X", confirm=False)
     assert result["applied"] is False
 
 

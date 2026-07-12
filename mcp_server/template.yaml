@@ -32,15 +32,22 @@ Resources:
     Properties:
       FunctionName: data-steward-mcp
       CodeUri: src/
-      Handler: app.handler
+      Handler: run.sh
+      Layers:
+        # AWS Lambda Web Adapter (arm64) — proxies HTTP requests to uvicorn on $PORT.
+        # Public layer maintained by AWS at account 753240598075.
+        - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerArm64:25
       Environment:
         Variables:
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          PORT: "8080"
+          READINESS_CHECK_PATH: /health
           OPENMETADATA_HOST: !Ref OpenMetadataHost
           MCP_BEARER_TOKEN_PARAM: !Ref BearerTokenParamName
           OPENMETADATA_JWT_PARAM: !Ref OpenMetadataJwtParamName
       FunctionUrlConfig:
         AuthType: NONE
-        InvokeMode: RESPONSE_STREAM
+        InvokeMode: BUFFERED
       Policies:
         - Statement:
             - Effect: Allow
